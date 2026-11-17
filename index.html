@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Butterfly</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #03030b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="800"></canvas>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const OY = -30;
+
+        // Python'daki random.Random(12) ile aynı sırayı yakalamak için deterministik üreteç
+        let seed = 12;
+        function rand() {
+            seed = (seed * 1664525 + 1013904223) % 4294967296;
+            return seed / 4294967296;
+        }
+        function uniform(min, max) {
+            return min + (max - min) * rand();
+        }
+
+        function butterfly(a, scale) {
+            const radius = (
+                Math.exp(Math.cos(a)) -
+                2 * Math.cos(4 * a) +
+                Math.pow(Math.sin(a / 12), 5)
+            ) * scale;
+            return [radius * Math.sin(a), radius * Math.cos(a) + OY];
+        }
+
+        function hx(color) {
+            const r = Math.floor(Math.max(0, Math.min(1, color[0])) * 255);
+            const g = Math.floor(Math.max(0, Math.min(1, color[1])) * 255);
+            const b = Math.floor(Math.max(0, Math.min(1, color[2])) * 255);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function mix(first, second, amount) {
+            return [
+                first[0] + (second[0] - first[0]) * amount,
+                first[1] + (second[1] - first[1]) * amount,
+                first[2] + (second[2] - first[2]) * amount
+            ];
+        }
+
+        function segment(x1, y1, x2, y2, color, width) {
+            ctx.beginPath();
+            ctx.moveTo(400 + x1, 400 - y1);
+            ctx.lineTo(400 + x2, 400 - y2);
+            ctx.strokeStyle = hx(color);
+            ctx.lineWidth = width;
+            ctx.lineCap = "round";
+            ctx.stroke();
+        }
+
+        // 5600 noktayı oluştur ve ölçeğe göre sırala
+        const points = [];
+        for (let i = 0; i < 5600; i++) {
+            points.push([uniform(0, 2 * Math.PI), uniform(3, 92)]);
+        }
+        points.sort((a, b) => a[1] - b[1]);
+
+        const strokes = [];
+        for (const [a, scale] of points) {
+            const [x, y] = butterfly(a, scale);
+            const angle = Math.atan2(y - OY, x) + uniform(-0.18, 0.18);
+            const length = uniform(3, 8);
+            let color;
+
+            if (scale < 41) {
+                color = mix([0.32, 0.95, 1.0], [0.22, 0.42, 1.0], scale / 41);
+            } else if (scale < 74) {
+                color = mix([0.22, 0.42, 1.0], [0.88, 0.20, 1.0], (scale - 41) / 33);
+            } else {
+                let amount = (scale - 74) / 18;
+                amount = amount * amount * (3 - 2 * amount);
+                color = mix([0.88, 0.20, 1.0], [0.24, 0.025, 0.42], amount);
+            }
+
+            strokes.push([
+                x, y,
+                x + length * Math.cos(angle),
+                y + length * Math.sin(angle),
+                color,
+                uniform(0.7, 1.3)
+            ]);
+        }
+
+        let index = 0;
+        function drawNext() {
+            // Akıcı bir çizim hızı için her karede 18 çizgi çizilir
+            for (let i = 0; i < 18 && index < strokes.length; i++, index++) {
+                segment(...strokes[index]);
+            }
+            if (index < strokes.length) {
+                requestAnimationFrame(drawNext);
+            }
+        }
+
+        requestAnimationFrame(drawNext);
+    </script>
+</body>
+</html>
